@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0ea5e9" />
+  <meta name="description" content="Offline-first Diabetes Log (PWA) to record glucose, insulin, carbs, and notes." />
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+  <title>Diabetes Log (Offline PWA)</title>
+</head>
+<body>
+  <header class="app-header">
+    <h1>Diabetes Log</h1>
+    <div class="status">
+      <span id="netStatus" class="badge">Offline</span>
+      <button id="installBtn" class="btn small" hidden>Install</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Add Entry</h2>
+      <form id="entryForm">
+        <div class="grid">
+          <label>Date &amp; Time
+            <input id="dt" type="datetime-local" required />
+          </label>
+          <label>Glucose (mg/dL)
+            <input id="glucose" type="number" inputmode="decimal" placeholder="e.g., 110" min="10" max="1000" required />
+          </label>
+          <label>Insulin (units)
+            <input id="insulin" type="number" inputmode="decimal" placeholder="e.g., 4" min="0" step="0.1" />
+          </label>
+          <label>Carbs (g)
+            <input id="carbs" type="number" inputmode="decimal" placeholder="e.g., 35" min="0" step="1" />
+          </label>
+        </div>
+        <label>Note
+          <textarea id="note" rows="2" placeholder="Before breakfast, exercise, etc."></textarea>
+        </label>
+        <div class="actions">
+          <button class="btn" type="submit">Save</button>
+          <button class="btn secondary" type="button" id="exportBtn">Export CSV</button>
+          <button class="btn danger" type="button" id="clearBtn">Clear All</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Entries</h2>
+      <div id="entriesEmpty" class="muted">No entries yet.</div>
+      <ul id="entriesList" class="list"></ul>
+    </section>
+  </main>
+
+  <footer>
+    <small>Install this as an app: open menu ⋮ &rarr; <b>Install app</b> (on Android Chrome). Works offline after first load.</small>
+  </footer>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
