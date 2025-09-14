@@ -13,62 +13,81 @@
 </head>
 <body>
   <header class="app-header">
-    <h1>Diabetes Daily Log</h1>
+    <h1 id="t_app_title">Diabetes Daily Log</h1>
     <div class="status">
+      <select id="langSel" class="btn small selectlike">
+        <option value="en">English</option>
+        <option value="fa">فارسی</option>
+      </select>
       <span id="netStatus" class="badge">Offline</span>
       <button id="installBtn" class="btn small" hidden>Install</button>
     </div>
   </header>
 
   <main>
+    <!-- 8) Daily Rules (moved to top) -->
     <section class="card">
-      <h2>1) Select Day</h2>
-      <div class="grid three">
-        <label>Date
-          <input id="dayDate" type="date" />
-        </label>
-        <label>Day (optional text)
-          <input id="dayText" type="text" placeholder="Saturday / Week 2" />
-        </label>
-        <label>Units
-          <select id="units">
-            <option value="mgdl" selected>mg/dL</option>
-            <option value="mmol">mmol/L</option>
-          </select>
-        </label>
-      </div>
-      <div class="actions">
-        <button id="copyPrev" class="btn secondary">Copy previous day</button>
-        <button id="clearDay" class="btn danger">Clear day</button>
-      </div>
-      <small class="muted">Pick a date to load/save that day’s data.</small>
+      <h2 id="t_rules_title">Daily Rules</h2>
+      <ul id="rulesList">
+        <li id="t_rule_bf">Before <b>09:00</b> — eat breakfast and take diabetes medications.</li>
+        <li id="t_rule_ln">Before <b>14:00</b> — eat lunch and take diabetes medications.</li>
+        <li id="t_rule_dn">Before <b>21:00</b> — eat dinner and take diabetes medications.</li>
+      </ul>
     </section>
 
+    <!-- 1) Select Day (no units) -->
     <section class="card">
-      <h2>2) Meals</h2>
+      <h2 id="t_select_day">Select Day</h2>
+      <div class="grid three">
+        <label id="t_greg_label">Date (Gregorian)
+          <div class="row">
+            <button id="prevDay" class="btn small secondary">&larr;</button>
+            <input id="dayDate" type="date" />
+            <button id="nextDay" class="btn small secondary">&rarr;</button>
+          </div>
+        </label>
+        <label id="t_jalali_label">Date (Persian)
+          <div class="row">
+            <div id="jalaliOut" class="jalali-out">—</div>
+          </div>
+        </label>
+        <label id="t_daytext_label">Day (optional text)
+          <input id="dayText" type="text" placeholder="Saturday / Week 2" />
+        </label>
+      </div>
       <div class="actions">
-        <button id="addMeal" class="btn">+ Add meal</button>
+        <button id="copyPrev" class="btn secondary" data-i18n="copy_prev">Copy previous day</button>
+        <button id="clearDay" class="btn danger" data-i18n="clear_day">Clear day</button>
+      </div>
+      <small class="muted" id="t_pick_hint">Pick a date to load/save that day’s data.</small>
+    </section>
+
+    <!-- 2) Meals -->
+    <section class="card">
+      <h2 id="t_meals">Meals</h2>
+      <div class="actions">
+        <button id="addMeal" class="btn" data-i18n="add_meal">+ Add meal</button>
       </div>
       <ul id="mealsList" class="list"></ul>
       <template id="mealTpl">
         <li class="item meal">
           <div class="entry">
             <div class="grid three">
-              <label>Kind
+              <label data-i18n="kind">Kind
                 <select class="meal-kind">
-                  <option>Breakfast</option>
-                  <option>Snack</option>
-                  <option>Lunch</option>
-                  <option>Snack (Afternoon)</option>
-                  <option>Dinner</option>
-                  <option>Other</option>
+                  <option value="Breakfast">Breakfast</option>
+                  <option value="Snack">Snack</option>
+                  <option value="Lunch">Lunch</option>
+                  <option value="Snack (Afternoon)">Snack (Afternoon)</option>
+                  <option value="Dinner">Dinner</option>
+                  <option value="Other">Other</option>
                 </select>
               </label>
-              <label>Time
+              <label data-i18n="time">Time
                 <input type="time" class="meal-time" />
               </label>
-              <label>Details
-                <input type="text" class="meal-desc" placeholder="100 g bread + 2 eggs + tea" />
+              <label data-i18n="details">Details
+                <textarea class="meal-desc" rows="2" placeholder="100 g bread&#10;30 g cheese&#10;1 cup coffee"></textarea>
               </label>
             </div>
           </div>
@@ -77,21 +96,22 @@
       </template>
     </section>
 
+    <!-- 3) Medications -->
     <section class="card">
-      <h2>3) Medications</h2>
+      <h2 id="t_meds">Medications</h2>
       <div class="actions">
-        <button id="addMed" class="btn">+ Add medication</button>
+        <button id="addMed" class="btn" data-i18n="add_med">+ Add medication</button>
       </div>
       <ul id="medsList" class="list"></ul>
       <template id="medTpl">
         <li class="item med">
           <div class="entry">
             <div class="grid two">
-              <label>Time
+              <label data-i18n="time">Time
                 <input type="time" class="med-time" />
               </label>
-              <label>Drugs &amp; dose
-                <input type="text" class="med-desc" placeholder="18 Novorapid – 20 Regular – Sita-Met 12.5/1000" />
+              <label data-i18n="drugs_dose">Drugs &amp; dose
+                <textarea class="med-desc" rows="2" placeholder="18 Novorapid&#10;20 Regular&#10;Sita-Met 12.5/1000"></textarea>
               </label>
             </div>
           </div>
@@ -100,25 +120,26 @@
       </template>
     </section>
 
+    <!-- 4) Blood Sugar -->
     <section class="card">
-      <h2>4) Blood Sugar</h2>
+      <h2 id="t_sugars">Blood Sugar</h2>
       <div class="actions">
-        <button id="addSugar" class="btn">+ Add custom reading</button>
-        <button id="addTemplate" class="btn secondary">Use recommended times</button>
+        <button id="addSugar" class="btn" data-i18n="add_bs_custom">+ Add custom reading</button>
+        <button id="addTemplate" class="btn secondary" data-i18n="use_recommended">Use recommended times</button>
       </div>
       <ul id="sugarList" class="list"></ul>
       <template id="sugarTpl">
         <li class="item sugar">
           <div class="entry">
             <div class="grid three">
-              <label>Label
+              <label data-i18n="label">Label
                 <input type="text" class="sugar-label" placeholder="Fasting / After BF 2h / ..." />
               </label>
-              <label>Time
+              <label data-i18n="time">Time
                 <input type="time" class="sugar-time" />
               </label>
-              <label>Value
-                <input type="number" min="10" max="1000" inputmode="decimal" class="sugar-value" placeholder="mg/dL or mmol/L" />
+              <label data-i18n="value">Value (mg/dL)
+                <input type="number" min="10" max="1000" inputmode="decimal" class="sugar-value" placeholder="mg/dL" />
               </label>
             </div>
             <small class="muted warn"></small>
@@ -126,43 +147,36 @@
           <button class="del">Delete</button>
         </li>
       </template>
-      <small class="muted">Recommended: Fasting (after wake), 2h after breakfast, 12:00, 18:00, Before sleep.</small>
+      <small class="muted" id="t_rec_hint">Recommended: Fasting (after wake), 2h after breakfast, 18:00, Before sleep.</small>
     </section>
 
+    <!-- 5) Sleep -->
     <section class="card">
-      <h2>5) Sleep</h2>
+      <h2 id="t_sleep">Sleep</h2>
       <div class="grid two">
-        <label>Wake time
+        <label id="t_wake">Wake time
           <input id="wakeTime" type="time" />
         </label>
-        <label>Bed time
+        <label id="t_bed">Bed time
           <input id="sleepTime" type="time" />
         </label>
       </div>
     </section>
 
+    <!-- 6) Chart / 7) Export -->
     <section class="card">
-      <h2>6) Daily Chart</h2>
-      <canvas id="chart" width="1100" height="520" class="chart"></canvas>
+      <h2 id="t_chart">Daily Chart</h2>
+      <canvas id="chart" width="1100" height="540" class="chart"></canvas>
       <div class="actions">
-        <button id="redraw" class="btn secondary">Redraw Chart</button>
-        <button id="exportA4" class="btn">Export A4 (Landscape)</button>
+        <button id="redraw" class="btn secondary" data-i18n="redraw">Redraw Chart</button>
+        <button id="exportA4" class="btn" data-i18n="export_a4">Export A4 (Landscape)</button>
       </div>
-      <small class="muted">Shaded band = 70–180 mg/dL target range.</small>
-    </section>
-
-    <section class="card">
-      <h2>8) Daily Rules</h2>
-      <ul>
-        <li>Before <b>09:00</b> — eat breakfast and take diabetes medications.</li>
-        <li>Before <b>14:00</b> — eat lunch and take diabetes medications.</li>
-        <li>Before <b>21:00</b> — eat dinner and take diabetes medications.</li>
-      </ul>
+      <small class="muted" id="t_target_band">Shaded band = 70–180 mg/dL target range.</small>
     </section>
   </main>
 
   <footer>
-    <small>Works offline after first load. You can install it: open menu ⋮ → <b>Install app</b> (Android Chrome).</small>
+    <small id="t_footer">Works offline after first load. You can install it: open menu ⋮ → <b>Install app</b> (Android Chrome).</small>
   </footer>
 
   <script src="app.js" defer></script>
