@@ -1,288 +1,351 @@
-// Diabetes Day Log PWA v2
+// Diabetes Daily Log PWA (IndexedDB) + Canvas Chart + A4 Landscape export
 (function(){
-  /* SW register */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./service-worker.js').catch(console.error);
     });
   }
 
-  /* Install prompt */
   let deferredPrompt;
   const installBtn = document.getElementById('installBtn');
   window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault(); deferredPrompt = e; installBtn.hidden = false;
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.hidden = false;
   });
   installBtn?.addEventListener('click', async () => {
     installBtn.hidden = true;
-    if (deferredPrompt) { deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; }
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+    }
   });
 
-  /* Net badge */
   const netBadge = document.getElementById('netStatus');
-  function updateNet(){ if (navigator.onLine){ netBadge.textContent='Online'; netBadge.classList.add('online'); } else { netBadge.textContent='Offline'; netBadge.classList.remove('online'); } }
-  window.addEventListener('online', updateNet); window.addEventListener('offline', updateNet); updateNet();
+  function updateNet(){
+    if (navigator.onLine) {
+      netBadge.textContent = 'Online';
+      netBadge.classList.add('online');
+    } else {
+      netBadge.textContent = 'Offline';
+      netBadge.classList.remove('online');
+    }
+  }
+  window.addEventListener('online', updateNet);
+  window.addEventListener('offline', updateNet);
+  updateNet();
 
-  /* IndexedDB */
-  const DB_NAME = 'diabetes-daylog-v2';
-  const STORES  = { meals:'meals', meds:'meds', sugars:'sugars', meta:'meta' };
+  const DB_NAME = 'diabetes-daily-v1';
+  const STORE = 'days';
   let db;
   function openDB(){
     return new Promise((resolve, reject)=>{
       const req = indexedDB.open(DB_NAME, 1);
-      req.onupgradeneeded = () => {
-        const d = req.result;
-        if (!d.objectStoreNames.contains(STORES.meals))  { const s=d.createObjectStore(STORES.meals,  {keyPath:'id',autoIncrement:true}); s.createIndex('by_date','date',{unique:false}); }
-        if (!d.objectStoreNames.contains(STORES.meds))   { const s=d.createObjectStore(STORES.meds,   {keyPath:'id',autoIncrement:true}); s.createIndex('by_date','date',{unique:false}); }
-        if (!d.objectStoreNames.contains(STORES.sugars)) { const s=d.createObjectStore(STORES.sugars, {keyPath:'id',autoIncrement:true}); s.createIndex('by_date','date',{unique:false}); }
-        if (!d.objectStoreNames.contains(STORES.meta))   { d.createObjectStore(STORES.meta, {keyPath:'date'}); }
+      req.onupgradeneeded = ()=>{
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE)) {
+          db.createObjectStore(STORE, { keyPath: 'date' });
+        }
       };
       req.onsuccess = ()=> resolve(req.result);
-      req.onerror   = ()=> reject(req.error);
+      req.onerror = ()=> reject(req.error);
     });
   }
-  async function tx(store, mode, fn){
+  async function withStore(mode, fn){
     db = db || await openDB();
-    return new Promise((resolve,reject)=>{
-      const t = db.transaction(store, mode);
-      const s = t.objectStore(store);
-      const r = fn(s);
-      t.oncomplete = ()=> resolve(r);
-      t.onerror = t.onabort = ()=> reject(t.error);
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction(STORE, mode);
+      const store = tx.objectStore(STORE);
+      const res = fn(store);
+      tx.oncomplete = ()=> resolve(res);
+      tx.onerror = ()=> reject(tx.error);
+      tx.onabort = ()=> reject(tx.error);
     });
   }
-
-  /* Helpers */
-  const fmt2 = n => String(n).padStart(2,'0');
-  function todayISO(){ return new Date().toISOString().slice(0,10); }
-  function timeToMinutes(t){ if(!t) return 0; const [h,m]=t.split(':'); return (+h)*60+(+m); }
-  function minutesToTime(m){ const h=Math.floor(m/60), mi=m%60; return fmt2(h)+':'+fmt2(mi); }
-  function dateToWeekday(iso){ return new Date(iso+'T00:00').toLocaleDateString(undefined,{weekday:'long'}); }
-  function addMinutes(time, mins){ const mm=((timeToMinutes(time)+mins)%1440+1440)%1440; return minutesToTime(mm); }
-
-  /* DOM */
-  const dayDate=document.getElementById('dayDate'), dayName=document.getElementById('dayName'), clearDayBtn=document.getElementById('clearDayBtn');
-  const mealsList=document.getElementById('mealsList'), medsList=document.getElementById('medsList'), sugarsList=document.getElementById('sugarsList');
-  const addMealBtn=document.getElementById('addMealBtn'), addMedBtn=document.getElementById('addMedBtn'), addSugarBtn=document.getElementById('addSugarBtn');
-  const quickTimes=document.getElementById('quickTimes'), wakeTime=document.getElementById('wakeTime'), sleepTime=document.getElementById('sleepTime');
-  const saveMetaBtn=document.getElementById('saveMetaBtn'), chartCanvas=document.getElementById('chart'), yMaxInput=document.getElementById('yMax');
-  const refreshChartBtn=document.getElementById('refreshChartBtn'), exportBtn=document.getElementById('exportBtn'), printChartCanvas=document.getElementById('printChart'), overlayDiv=document.getElementById('overlay');
-
-  /* Init day */
-  dayDate.value = todayISO();
-  dayName.value = dateToWeekday(dayDate.value);
-  dayDate.addEventListener('change', async ()=>{ dayName.value=dateToWeekday(dayDate.value); await loadDay(); });
-
-  /* Quick preset times */
-  function renderQuickTimes(){
-    quickTimes.innerHTML='';
-    const presets = [
-      {label:'Fasting (wake)', key:'fasting'},
-      {label:'+2h breakfast',  key:'post2h'},
-      {label:'12:00',          key:'noon'},
-      {label:'18:00',          key:'evening'},
-      {label:'Before sleep',   key:'sleep'}
-    ];
-    presets.forEach(p=>{
-      const b=document.createElement('button'); b.className='qt'; b.textContent=p.label;
-      b.addEventListener('click', async ()=>{
-        const m = await getMeta(dayDate.value) || {};
-        let t='00:00';
-        if (p.key==='fasting') t = m.wake || '06:00';
-        else if (p.key==='post2h') t = addMinutes(m.breakfastTime || '08:00', 120);
-        else if (p.key==='noon') t = '12:00';
-        else if (p.key==='evening') t = '18:00';
-        else if (p.key==='sleep') t = m.sleep || '23:00';
-        addSugarEditor(t);
-      });
-      quickTimes.appendChild(b);
-    });
-  }
-
-  /* CRUD */
-  async function addMeal(date,time,kind,desc){ return tx(STORES.meals,'readwrite', s=> s.add({date,time,kind,desc})); }
-  async function addMed(date,time,desc){     return tx(STORES.meds,'readwrite',  s=> s.add({date,time,desc})); }
-  async function addSugar(date,time,value,note){ return tx(STORES.sugars,'readwrite', s=> s.add({date,time,value,note})); }
-  async function delById(store,id){ return tx(store,'readwrite', s=> s.delete(id)); }
-  async function listByDate(store, date){
-    return tx(store,'readonly', s => new Promise((resolve,reject)=>{
-      const req = s.index('by_date').getAll(date);
-      req.onsuccess = ()=> resolve(req.result || []); req.onerror = ()=> reject(req.error);
+  async function saveDay(day){ return withStore('readwrite', s => s.put(day)); }
+  async function loadDay(date){
+    return withStore('readonly', s => new Promise((resolve)=>{
+      const r = s.get(date);
+      r.onsuccess = ()=> resolve(r.result || null);
+      r.onerror = ()=> resolve(null);
     }));
   }
-  async function setMeta(date, obj){ obj.date=date; return tx(STORES.meta, 'readwrite', s=> s.put(obj)); }
-  async function getMeta(date){ return tx(STORES.meta,'readonly', s=> new Promise((resolve,reject)=>{ const r=s.get(date); r.onsuccess=()=>resolve(r.result||null); r.onerror=()=>reject(r.error);})); }
-  async function clearDay(date){
-    await tx(STORES.meals, 'readwrite', s=>{ s.index('by_date').getAllKeys(date).onsuccess=e=> e.target.result.forEach(k=>s.delete(k)); });
-    await tx(STORES.meds,  'readwrite', s=>{ s.index('by_date').getAllKeys(date).onsuccess=e=> e.target.result.forEach(k=>s.delete(k)); });
-    await tx(STORES.sugars,'readwrite', s=>{ s.index('by_date').getAllKeys(date).onsuccess=e=> e.target.result.forEach(k=>s.delete(k)); });
-    await tx(STORES.meta,  'readwrite', s=> s.delete(date));
-  }
 
-  /* Add-row templates */
-  const mealTpl = document.getElementById('mealRow');
-  const medTpl  = document.getElementById('medRow');
-  const sugarTpl= document.getElementById('sugarRow');
+  const $ = sel => document.querySelector(sel);
+  const dayDate = $('#dayDate');
+  const dayText = $('#dayText');
+  const addMealBtn = document.getElementById('addMeal');
+  const mealsList = document.getElementById('mealsList');
+  const mealTpl = document.getElementById('mealTpl');
+  const addMedBtn = document.getElementById('addMed');
+  const medsList = document.getElementById('medsList');
+  const medTpl = document.getElementById('medTpl');
+  const addSugarBtn = document.getElementById('addSugar');
+  const sugarList = document.getElementById('sugarList');
+  const sugarTpl = document.getElementById('sugarTpl');
+  const wakeTime = document.getElementById('wakeTime');
+  const sleepTime = document.getElementById('sleepTime');
+  const chart = document.getElementById('chart');
+  const redrawBtn = document.getElementById('redraw');
+  const exportA4Btn = document.getElementById('exportA4');
 
-  function addMealEditor(time='08:00'){
-    const li = mealTpl.content.firstElementChild.cloneNode(true);
-    li.querySelector('.m-time').value = time;
-    li.querySelector('.save').addEventListener('click', async ()=>{
-      const t=li.querySelector('.m-time').value;
-      const k=li.querySelector('.m-kind').value;
-      const d=li.querySelector('.m-desc').value.trim();
-      if(!t) return alert('Pick a time');
-      await addMeal(dayDate.value,t,k,d);
-      await loadDay();
-    });
-    li.querySelector('.cancel').addEventListener('click', ()=> li.remove());
-    mealsList.prepend(li);
+  function todayISO(){
+    const d = new Date();
+    const pad = n=> String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   }
-  function addMedEditor(time='08:00'){
-    const li = medTpl.content.firstElementChild.cloneNode(true);
-    li.querySelector('.d-time').value=time;
-    li.querySelector('.save').addEventListener('click', async ()=>{
-      const t=li.querySelector('.d-time').value;
-      const d=li.querySelector('.d-desc').value.trim();
-      if(!t) return alert('Pick a time');
-      await addMed(dayDate.value,t,d);
-      await loadDay();
-    });
-    li.querySelector('.cancel').addEventListener('click', ()=> li.remove());
-    medsList.prepend(li);
+  function ensureDay(date){
+    return { date, dayText:'', meals:[], meds:[], sugars:[], wakeTime:'', sleepTime:'' };
   }
-  function addSugarEditor(time='08:00'){
-    const li = sugarTpl.content.firstElementChild.cloneNode(true);
-    li.querySelector('.s-time').value=time;
-    li.querySelector('.save').addEventListener('click', async ()=>{
-      const t=li.querySelector('.s-time').value;
-      const v=Number(li.querySelector('.s-val').value);
-      const n=li.querySelector('.s-note').value.trim();
-      if(!t || !v) return alert('Fill time and value');
-      await addSugar(dayDate.value,t,v,n);
-      await loadDay();
-    });
-    li.querySelector('.cancel').addEventListener('click', ()=> li.remove());
-    sugarsList.prepend(li);
-  }
+  function timeToMinutes(t){ if (!t) return null; const [H,M]=t.split(':').map(Number); return H*60+M; }
+  function minutesToTime(min){ const H=Math.floor(min/60), M=min%60; return `${String(H).padStart(2,'0')}:${String(M).padStart(2,'0')}`; }
 
-  addMealBtn.addEventListener('click', ()=> addMealEditor());
-  addMedBtn.addEventListener('click', ()=> addMedEditor());
-  addSugarBtn.addEventListener('click', ()=> addSugarEditor());
-  clearDayBtn.addEventListener('click', async ()=>{ if(confirm('Delete ALL data for this date?')){ await clearDay(dayDate.value); await loadDay(); }});
+  let current = ensureDay(todayISO());
+  dayDate.valueAsDate = new Date();
+  (async function init(){
+    const d = await loadDay(current.date);
+    if (d) current = d;
+    renderAll();
+  })();
 
-  saveMetaBtn.addEventListener('click', async ()=>{
-    await setMeta(dayDate.value, { date:dayDate.value, wake:wakeTime.value||null, sleep:sleepTime.value||null, yMax:Number(yMaxInput.value)||300 });
-    alert('Saved.');
+  dayDate.addEventListener('change', async ()=>{
+    const date = dayDate.value || todayISO();
+    current = ensureDay(date);
+    const saved = await loadDay(date);
+    if (saved) current = saved;
+    renderAll();
   });
+  dayText.addEventListener('input', async ()=>{ current.dayText = dayText.value; await saveDay(current); });
+  wakeTime.addEventListener('change', async ()=>{ current.wakeTime = wakeTime.value; await saveDay(current); drawChart(); });
+  sleepTime.addEventListener('change', async ()=>{ current.sleepTime = sleepTime.value; await saveDay(current); drawChart(); });
 
-  /* List renderers */
-  function tag(text){ const s=document.createElement('span'); s.className='tag'; s.textContent=text; return s; }
-  function mkDel(fn){ const b=document.createElement('button'); b.className='del'; b.textContent='Delete'; b.addEventListener('click', async ()=>{ await fn(); await loadDay(); }); return b; }
+  addMealBtn.addEventListener('click', ()=>{ current.meals.push({kind:'Breakfast', time:'', desc:''}); updateMeals(); saveDay(current); });
+  addMedBtn.addEventListener('click', ()=>{ current.meds.push({time:'', desc:''}); updateMeds(); saveDay(current); });
+  addSugarBtn.addEventListener('click', ()=>{ current.sugars.push({time:'', value:null}); updateSugars(); saveDay(current); });
+  redrawBtn.addEventListener('click', drawChart);
+  exportA4Btn.addEventListener('click', exportA4);
 
-  function renderMealItem(m){
-    const li=document.createElement('li'); li.className='item';
-    const left=document.createElement('div'); left.className='entry';
-    const top=document.createElement('div'); top.className='top';
-    top.append(tag(m.time), tag(m.kind));
-    const d=document.createElement('div'); d.textContent=m.desc||'';
-    left.append(top,d);
-    const del = mkDel(()=> delById(STORES.meals,m.id));
-    li.append(left, del);
-    return li;
-  }
-  function renderMedItem(m){
-    const li=document.createElement('li'); li.className='item';
-    const left=document.createElement('div'); left.className='entry';
-    const top=document.createElement('div'); top.className='top';
-    top.append(tag(m.time), tag('Medication'));
-    const d=document.createElement('div'); d.textContent=m.desc||'';
-    left.append(top,d);
-    const del=mkDel(()=> delById(STORES.meds,m.id));
-    li.append(left,del); return li;
-  }
-  function renderSugarItem(s){
-    const li=document.createElement('li'); li.className='item';
-    const left=document.createElement('div'); left.className='entry';
-    const top=document.createElement('div'); top.className='top';
-    top.append(tag(s.time), tag(s.value+' mg/dL'));
-    const d=document.createElement('div'); d.textContent=s.note||'';
-    left.append(top,d);
-    const del=mkDel(()=> delById(STORES.sugars,s.id));
-    li.append(left,del); return li;
+  function renderAll(){
+    dayText.value = current.dayText || '';
+    wakeTime.value = current.wakeTime || '';
+    sleepTime.value = current.sleepTime || '';
+    updateMeals(); updateMeds(); updateSugars(); drawChart();
   }
 
-  /* Load day */
-  async function loadDay(){
-    const date = dayDate.value;
-    const [meals, meds, sugars, meta] = await Promise.all([
-      listByDate(STORES.meals,date),
-      listByDate(STORES.meds,date),
-      listByDate(STORES.sugars,date),
-      getMeta(date)
-    ]);
-    const sortByTime = (a,b)=> timeToMinutes(a.time)-timeToMinutes(b.time);
-    meals.sort(sortByTime); meds.sort(sortByTime); sugars.sort(sortByTime);
-
-    mealsList.innerHTML = meals.length ? '' : '<div class="muted">No meals yet.</div>';
-    medsList.innerHTML  = meds.length  ? '' : '<div class="muted">No medications yet.</div>';
-    sugarsList.innerHTML= sugars.length? '' : '<div class="muted">No readings yet.</div>';
-
-    meals.forEach(m=> mealsList.appendChild(renderMealItem(m)));
-    meds.forEach(m=>  medsList.appendChild(renderMedItem(m)));
-    sugars.forEach(s=> sugarsList.appendChild(renderSugarItem(s)));
-
-    wakeTime.value = meta?.wake || '';
-    sleepTime.value= meta?.sleep || '';
-    yMaxInput.value= meta?.yMax || yMaxInput.value;
-
-    renderQuickTimes();
-    drawChart(sugars, Number(yMaxInput.value));
+  function updateMeals(){
+    mealsList.innerHTML = '';
+    current.meals.forEach((m, idx)=>{
+      const node = mealTpl.content.firstElementChild.cloneNode(true);
+      const kindEl = node.querySelector('.meal-kind');
+      const timeEl = node.querySelector('.meal-time');
+      const descEl = node.querySelector('.meal-desc');
+      const del = node.querySelector('.del');
+      kindEl.value = m.kind || 'Breakfast';
+      timeEl.value = m.time || '';
+      descEl.value = m.desc || '';
+      kindEl.addEventListener('change', async ()=>{ m.kind = kindEl.value; await saveDay(current); drawChart(); });
+      timeEl.addEventListener('change', async ()=>{ m.time = timeEl.value; await saveDay(current); drawChart(); });
+      descEl.addEventListener('input', async ()=>{ m.desc = descEl.value; await saveDay(current); });
+      del.addEventListener('click', async ()=>{ current.meals.splice(idx,1); updateMeals(); await saveDay(current); drawChart(); });
+      mealsList.appendChild(node);
+    });
+  }
+  function updateMeds(){
+    medsList.innerHTML = '';
+    current.meds.forEach((m, idx)=>{
+      const node = medTpl.content.firstElementChild.cloneNode(true);
+      const timeEl = node.querySelector('.med-time');
+      const descEl = node.querySelector('.med-desc');
+      const del = node.querySelector('.del');
+      timeEl.value = m.time || '';
+      descEl.value = m.desc || '';
+      timeEl.addEventListener('change', async ()=>{ m.time = timeEl.value; await saveDay(current); drawChart(); });
+      descEl.addEventListener('input', async ()=>{ m.desc = descEl.value; await saveDay(current); });
+      del.addEventListener('click', async ()=>{ current.meds.splice(idx,1); updateMeds(); await saveDay(current); drawChart(); });
+      medsList.appendChild(node);
+    });
+  }
+  function updateSugars(){
+    sugarList.innerHTML = '';
+    current.sugars.forEach((s, idx)=>{
+      const node = sugarTpl.content.firstElementChild.cloneNode(true);
+      const timeEl = node.querySelector('.sugar-time');
+      const valEl = node.querySelector('.sugar-value');
+      const del = node.querySelector('.del');
+      timeEl.value = s.time || '';
+      valEl.value = s.value ?? '';
+      timeEl.addEventListener('change', async ()=>{ s.time = timeEl.value; await saveDay(current); drawChart(); });
+      valEl.addEventListener('change', async ()=>{ s.value = Number(valEl.value||0)||null; await saveDay(current); drawChart(); });
+      del.addEventListener('click', async ()=>{ current.sugars.splice(idx,1); updateSugars(); await saveDay(current); drawChart(); });
+      sugarList.appendChild(node);
+    });
   }
 
-  /* Chart (vanilla canvas) */
-  function drawChart(sugars, yMax=300, canvas=chartCanvas){
-    const ctx = canvas.getContext('2d');
-    const W=canvas.width, H=canvas.height;
-    const L=50,R=20,T=20,B=40;
+  function drawChart(){
+    const ctx = chart.getContext('2d');
+    const W = chart.width, H = chart.height;
     ctx.clearRect(0,0,W,H);
-    const grad = ctx.createLinearGradient(0,0,0,H);
-    grad.addColorStop(0,'#0b1220'); grad.addColorStop(1,'#0c1624');
-    ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
-
-    // grid
-    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid').trim()||'#223046';
-    ctx.lineWidth=1; ctx.beginPath();
-    for(let h=0; h<=24; h+=2){ const x=L+(W-L-R)*(h/24); ctx.moveTo(x,T); ctx.lineTo(x,H-B); }
-    const yStep = 50;
-    for(let y=0; y<=yMax; y+=yStep){ const yy=mapY(y); ctx.moveTo(L,yy); ctx.lineTo(W-R,yy); }
-    ctx.stroke();
-
-    // axes
-    ctx.strokeStyle='#2e3e58'; ctx.lineWidth=1.5; ctx.beginPath();
-    ctx.moveTo(L,T); ctx.lineTo(L,H-B); ctx.lineTo(W-R,H-B); ctx.stroke();
-
-    // labels
-    ctx.fillStyle='#a7b4cc'; ctx.font='12px system-ui,-apple-system,Segoe UI,Roboto';
-    for(let h=0; h<=24; h+=2){ const x=L+(W-L-R)*(h/24); ctx.fillText(fmt2(h)+':00', x-14, H-18); }
-    for(let y=0; y<=yMax; y+=yStep){ const yy=mapY(y); ctx.fillText(String(y), 8, yy+4); }
-
-    // data
-    const pts = sugars.map(s => ({ x:L+(W-L-R)*(timeToMinutes(s.time)/1440), y:mapY(s.value), v:s.value, t:s.time }));
-    if (pts.length){
-      ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--line').trim()||'#60a5fa';
-      ctx.lineWidth=2; ctx.beginPath();
-      pts.forEach((p,i)=>{ if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
-      ctx.stroke();
-      ctx.fillStyle='#93c5fd';
-      pts.forEach(p=>{ ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2); ctx.fill(); });
+    ctx.fillStyle = '#0b1220'; ctx.fillRect(0,0,W,H);
+    const padL=60,padR=20,padT=20,padB=40;
+    const x0=padL,y0=padT,x1=W-padR,y1=H-padB;
+    ctx.strokeStyle='#1f2937'; ctx.lineWidth=1; ctx.strokeRect(x0,y0,x1-x0,y1-y0);
+    const xOfMin = (min)=> x0 + (min/1440)*(x1-x0);
+    const values = current.sugars.filter(s=> s.value && s.time).map(s=> s.value);
+    let minY = Math.min(80, ...(values.length? [Math.min(...values)-20] : [80]));
+    let maxY = Math.max(240, ...(values.length? [Math.max(...values)+20] : [240]));
+    if (maxY - minY < 100){ maxY = minY + 100; }
+    const yOfVal = (v)=> y1 - ( (v - minY) / (maxY - minY) ) * (y1 - y0);
+    ctx.fillStyle='#94a3b8'; ctx.font='12px system-ui, sans-serif';
+    for (let h=0; h<=24; h+=2){
+      const m=h*60, x=xOfMin(m);
+      ctx.strokeStyle='#1f2937'; ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y1); ctx.stroke();
+      ctx.fillText(`${String(h).padStart(2,'0')}:00`, x-12, y1+16);
     }
-
-    function mapY(val){ const h=H-T-B; return T + (1 - Math.min(val,yMax)/yMax) * h; }
+    const yTicks=6;
+    for (let i=0;i<=yTicks;i++){
+      const v=minY+(i/yTicks)*(maxY-minY), y=yOfVal(v);
+      ctx.strokeStyle='#1f2937'; ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke();
+      ctx.fillText(String(Math.round(v)), 8, y+4);
+    }
+    ctx.fillText('Time', (x0+x1)/2 - 12, H-8);
+    ctx.save(); ctx.translate(16,(y0+y1)/2); ctx.rotate(-Math.PI/2); ctx.fillText('Blood sugar (mg/dL)', -60, 0); ctx.restore();
+    function drawVAt(time, color='#334155', label=''){
+      const m=timeToMinutes(time); if (m==null) return;
+      const x=xOfMin(m);
+      ctx.strokeStyle=color; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y1); ctx.stroke(); ctx.setLineDash([]);
+      if (label){ ctx.fillStyle='#94a3b8'; ctx.fillText(label, x-20, y0+12); }
+    }
+    drawVAt(current.wakeTime, '#475569', 'Wake');
+    const b = current.meals.find(m=> (m.kind||'').toLowerCase().startsWith('breakfast') && m.time);
+    if (b){ const t=timeToMinutes(b.time); if (t!=null){ const t2 = (t+120)%1440; drawVAt(`${String(Math.floor(t2/60)).padStart(2,'0')}:${String(t2%60).padStart(2,'0')}`, '#64748b', '2h after BF'); } }
+    drawVAt('12:00','#475569','12:00');
+    drawVAt('18:00','#475569','18:00');
+    drawVAt(current.sleepTime,'#475569','Sleep');
+    const pts = current.sugars.filter(s=> s.time && s.value!=null).map(s=> ({x:xOfMin(timeToMinutes(s.time)), y:yOfVal(s.value)})).sort((a,b)=> a.x-b.x);
+    if (pts.length){
+      ctx.strokeStyle='#0ea5e9'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.stroke();
+      ctx.fillStyle='#0ea5e9'; for (const p of pts){ ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2); ctx.fill(); }
+    }
+    function roundRect(ctx, x, y, w, h, r, fill, stroke){
+      if (w<2*r) r = w/2; if (h<2*r) r=h/2;
+      ctx.beginPath();
+      ctx.moveTo(x+r,y);
+      ctx.arcTo(x+w,y,x+w,y+h,r);
+      ctx.arcTo(x+w,y+h,x,y+h,r);
+      ctx.arcTo(x,y+h,x,y,r);
+      ctx.arcTo(x,y,x+w,y,r);
+      ctx.closePath();
+      if (fill) ctx.fill();
+      if (stroke) ctx.stroke();
+    }
+    function drawTag(x, y, text, bg, fg){
+      const padX=6, r=6;
+      ctx.font='12px system-ui, sans-serif';
+      const w = ctx.measureText(text).width + padX*2;
+      const h = 20;
+      const left = Math.max(x - w/2, x0);
+      const right = Math.min(left + w, x1);
+      const adjLeft = right - w;
+      ctx.fillStyle = bg;
+      roundRect(ctx, adjLeft, y, w, h, r, true, false);
+      ctx.fillStyle = fg; ctx.fillText(text, adjLeft+padX, y+14);
+      ctx.strokeStyle = bg; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y-8); ctx.stroke();
+    }
+    const topY=y0+8, botY=y1-28;
+    for (const m of current.meals){ if (!m.time) continue; const x=xOfMin(timeToMinutes(m.time)); const label=(m.kind||'Meal') + (m.desc? `: ${m.desc}`:''); drawTag(x, topY, label, '#0ea5e980', '#00111a'); }
+    for (const md of current.meds){ if (!md.time) continue; const x=xOfMin(timeToMinutes(md.time)); drawTag(x, botY, md.desc||'Medication', '#22c55e80', '#022010'); }
   }
 
-  refreshChartBtn.addEventListener('click', async ()=>{
-    const sugars = await listByDate(STORES.sugars, dayDate.value);
-    sugars.sort((a,b)=> timeToMinutes(a.time)-timeToMinutes(b.time));
-    drawChart(sugars, Number(yMaxInput.value));
- 
+  function exportA4(){
+    const A4W = 1400, A4H = Math.round(1400/1.4142);
+    const cvs = document.createElement('canvas');
+    cvs.width = A4W; cvs.height = A4H;
+    const ctx = cvs.getContext('2d');
+    const W=A4W,H=A4H;
+    ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,W,H);
+    const padL=80,padR=30,padT=30,padB=60;
+    const x0=padL,y0=padT,x1=W-padR,y1=H-padB;
+    ctx.fillStyle='#0b1220'; ctx.fillRect(x0,y0,x1-x0,y1-y0);
+    ctx.strokeStyle='#1f2937'; ctx.lineWidth=1; ctx.strokeRect(x0,y0,x1-x0,y1-y0);
+    const xOfMin = (min)=> x0 + (min/1440)*(x1-x0);
+    const values = current.sugars.filter(s=> s.value && s.time).map(s=> s.value);
+    let minY = Math.min(80, ...(values.length? [Math.min(...values)-20] : [80]));
+    let maxY = Math.max(240, ...(values.length? [Math.max(...values)+20] : [240]));
+    if (maxY - minY < 100){ maxY = minY + 100; }
+    const yOfVal = (v)=> y1 - ( (v - minY) / (maxY - minY) ) * (y1 - y0);
+    ctx.fillStyle='#94a3b8'; ctx.font='16px system-ui, sans-serif';
+    for (let h=0; h<=24; h+=2){
+      const m=h*60, x=xOfMin(m);
+      ctx.strokeStyle='#374151'; ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y1); ctx.stroke();
+      ctx.fillText(`${String(h).padStart(2,'0')}:00`, x-16, y1+24);
+    }
+    const yTicks=6;
+    for (let i=0;i<=yTicks;i++){
+      const v=minY+(i/yTicks)*(maxY-minY), y=yOfVal(v);
+      ctx.strokeStyle='#374151'; ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke();
+      ctx.fillText(String(Math.round(v)), 14, y+6);
+    }
+    ctx.fillText('Time', (x0+x1)/2 - 18, H-10);
+    ctx.save(); ctx.translate(24,(y0+y1)/2); ctx.rotate(-Math.PI/2); ctx.fillText('Blood sugar (mg/dL)', -70, 0); ctx.restore();
+    function timeToMinutes(t){ if (!t) return null; const [H,M]=t.split(':').map(Number); return H*60+M; }
+    function minutesToTime(min){ const H=Math.floor(min/60), M=min%60; return `${String(H).padStart(2,'0')}:${String(M).padStart(2,'0')}`; }
+    function drawVAt(time, color='#6b7280', label=''){
+      const m=timeToMinutes(time); if (m==null) return;
+      const x=xOfMin(m);
+      ctx.strokeStyle=color; ctx.setLineDash([6,6]); ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y1); ctx.stroke(); ctx.setLineDash([]);
+      if (label){ ctx.fillStyle='#111827'; ctx.fillText(label, x-28, y0-6); }
+    }
+    drawVAt(current.wakeTime, '#9ca3af', 'Wake');
+    const b = current.meals.find(m=> (m.kind||'').toLowerCase().startsWith('breakfast') && m.time);
+    if (b){ const t=timeToMinutes(b.time); if (t!=null){ const t2=(t+120)%1440; drawVAt(`${String(Math.floor(t2/60)).padStart(2,'0')}:${String(t2%60).padStart(2,'0')}`, '#9ca3af', '2h after BF'); } }
+    drawVAt('12:00','#9ca3af','12:00'); drawVAt('18:00','#9ca3af','18:00'); drawVAt(current.sleepTime,'#9ca3af','Sleep');
+    const pts = current.sugars.filter(s=> s.time && s.value!=null).map(s=> ({x:xOfMin(timeToMinutes(s.time)), y:yOfVal(s.value)})).sort((a,b)=> a.x-b.x);
+    if (pts.length){
+      ctx.strokeStyle='#0ea5e9'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.stroke();
+      ctx.fillStyle='#0ea5e9'; for (const p of pts){ ctx.beginPath(); ctx.arc(p.x,p.y,4,0,Math.PI*2); ctx.fill(); }
+    }
+    function roundRect(ctx, x, y, w, h, r, fill, stroke){
+      if (w<2*r) r = w/2; if (h<2*r) r=h/2;
+      ctx.beginPath();
+      ctx.moveTo(x+r,y);
+      ctx.arcTo(x+w,y,x+w,y+h,r);
+      ctx.arcTo(x+w,y+h,x,y+h,r);
+      ctx.arcTo(x,y+h,x,y,r);
+      ctx.arcTo(x,y,x+w,y,r);
+      ctx.closePath();
+      if (fill) ctx.fill();
+      if (stroke) ctx.stroke();
+    }
+    function drawTag(x, y, text, bg, fg){
+      const padX=8, r=8;
+      ctx.font='16px system-ui, sans-serif';
+      const w = ctx.measureText(text).width + padX*2;
+      const h = 28;
+      const left = Math.max(x - w/2, x0);
+      const right = Math.min(left + w, x1);
+      const adjLeft = right - w;
+      ctx.fillStyle = bg;
+      roundRect(ctx, adjLeft, y, w, h, r, true, false);
+      ctx.fillStyle = fg; ctx.fillText(text, adjLeft+padX, y+20);
+      ctx.strokeStyle = bg; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y-10); ctx.stroke();
+    }
+    const topY=y0+10, botY=y1-38;
+    for (const m of current.meals){ if (!m.time) continue; const x=xOfMin(timeToMinutes(m.time)); const label=(m.kind||'Meal') + (m.desc? `: ${m.desc}`:''); drawTag(x, topY, label, '#0ea5e9cc', '#00111a'); }
+    for (const md of current.meds){ if (!md.time) continue; const x=xOfMin(timeToMinutes(md.time)); drawTag(x, botY, md.desc||'Medication', '#22c55ecc', '#022010'); }
+    ctx.fillStyle='#111827'; ctx.font='bold 18px system-ui, sans-serif';
+    const title = `Diabetes Daily Chart — ${current.date}${current.dayText? ' — ' + current.dayText : ''}`;
+    ctx.fillText(title, x0, 22);
+    const w = window.open('', '_blank');
+    const dataURL = cvs.toDataURL('image/png');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Export A4 — ${current.date}</title>
+<style>@page { size: A4 landscape; margin: 10mm; } html,body{height:100%;margin:0} body{display:flex;align-items:center;justify-content:center;background:#fff} img{width:100%;height:auto}</style></head>
+<body><img src="${dataURL}" alt="A4 Export"></body></html>`;
+    w.document.open(); w.document.write(html); w.document.close(); w.focus(); setTimeout(()=> w.print(), 300);
+  }
+
+})();

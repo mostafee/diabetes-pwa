@@ -1,24 +1,18 @@
-*{box-sizing:border-box}
-:root{
-  --bg:#0b1220;--panel:#111827;--muted:#94a3b8;--text:#e5e7eb;
-  --brand:#0ea5e9;--danger:#ef4444;--ok:#10b981;--grid:#223046;--line:#60a5fa
-}
-html,body{height:100%}
-body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;line-height:1.4}
-.app-header{position:sticky;top:0;background:linear-gradient(180deg,#0b1220,#0b1220cc 60%,transparent);backdrop-filter:saturate(1.2) blur(4px);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #0f172a;z-index:5}
+*{box-sizing:border-box} :root{--bg:#0b1220;--panel:#111827;--muted:#94a3b8;--text:#e5e7eb;--brand:#0ea5e9;--danger:#ef4444;--ok:#10b981}
+html,body{height:100%} body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;line-height:1.45}
+.app-header{position:sticky;top:0;background:linear-gradient(180deg,#0b1220,#0b1220cc 60%,transparent);backdrop-filter:saturate(1.2) blur(4px);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #0f172a;z-index:10}
 h1{margin:0;font-size:1.25rem} h2{margin:0 0 10px;font-size:1.1rem}
 .badge{padding:4px 8px;border-radius:999px;font-size:.75rem;background:#1f2937;color:#e5e7eb;border:1px solid #374151}
 .badge.online{background:var(--ok);color:#04110b;border-color:#065f46}
-main{max-width:1100px;margin:20px auto;padding:0 16px}
+main{max-width:1000px;margin:20px auto;padding:0 16px}
 .card{background:var(--panel);border:1px solid #1f2937;border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
-.muted{color:var(--muted)} .small{font-size:.85rem}
 label{display:block;font-weight:600;margin:10px 0 6px}
 input,select,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #374151;background:#0b1220;color:var(--text)}
 input::placeholder,textarea::placeholder{color:#64748b}
-.grid3{display:grid;grid-template-columns:1fr 2fr 2fr;gap:12px}
-.row{display:flex;gap:12px;align-items:end;flex-wrap:wrap}
-.between{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.spacer{flex:1 1 auto}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:800px){.grid,.grid.two,.grid.three{grid-template-columns:1fr}}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
 .btn{background:var(--brand);color:#00111a;border:none;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
 .btn.small{padding:6px 10px;font-size:.85rem}
@@ -27,23 +21,15 @@ input::placeholder,textarea::placeholder{color:#64748b}
 .list{list-style:none;margin:0;padding:0}
 .item{display:flex;gap:10px;justify-content:space-between;align-items:start;border-bottom:1px solid #1f2937;padding:12px 4px}
 .item:last-child{border-bottom:none}
-.item .entry{max-width:calc(100% - 100px)}
-.item .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
-.tag{padding:2px 6px;border-radius:999px;background:#0b1220;border:1px solid #334155;color:#e5e7eb;font-size:.75rem}
+.entry{flex:1;min-width:0}
+.muted{color:var(--muted)}
+footer{max-width:1000px;margin:20px auto;padding:0 16px 40px;color:#93a3b8}
 .del{background:#1f2937;color:#e5e7eb;border:1px solid #374151;border-radius:10px;padding:6px 10px;cursor:pointer}
-.quick-times{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 0}
-.quick-times .qt{border:1px dashed #3b82f6;background:#0b1220;color:#dbeafe;border-radius:10px;padding:4px 8px;cursor:pointer}
-.chart{width:100%;border-radius:12px;border:1px solid #23314a;background:linear-gradient(180deg,#0b1220 0%,#0c1624 100%)}
-.rules{margin:0;padding-left:18px}
-
-/* Print page */
-#printArea{display:none}
-@media print {
-  body{background:white;color:black}
-  header, main > .card:not(.printable), footer{display:none !important}
-  #printArea{display:block}
-  #printCanvasWrap{position:relative;width:100%;height:100%}
-  #printChart{position:absolute;left:0;top:0;width:100%;height:100%}
-  #overlay{position:absolute;left:0;top:0;width:100%;height:100%}
+.chart{width:100%;height:auto;border-radius:12px;border:1px solid #1f2937;background:#0b1220}
+.print-only{display:none}
+@media print{
+  body{background:#fff;color:#000}
+  .app-header, footer, .actions, .badge{display:none !important}
+  .card{box-shadow:none;border:none}
+  .print-only{display:block}
 }
-@page{size:A4 landscape;margin:10mm}

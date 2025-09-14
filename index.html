@@ -4,16 +4,16 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#0ea5e9" />
-  <meta name="description" content="Offline-first Diabetes Day Log (PWA). Track meals, meds, sugars, sleep, and export an A4 chart." />
+  <meta name="description" content="Daily diabetes log PWA. Meals, medications, blood sugar, sleep, and chart with A4 export." />
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="styles.css">
-  <title>Diabetes Day Log (PWA)</title>
+  <title>Diabetes Daily Log</title>
 </head>
 <body>
   <header class="app-header">
-    <h1>Diabetes Day Log</h1>
+    <h1>Diabetes Daily Log</h1>
     <div class="status">
       <span id="netStatus" class="badge">Offline</span>
       <button id="installBtn" class="btn small" hidden>Install</button>
@@ -21,177 +21,132 @@
   </header>
 
   <main>
-    <!-- 1) Day & Date -->
     <section class="card">
-      <h2>Day</h2>
-      <div class="row">
+      <h2>1) Select Day</h2>
+      <div class="grid">
         <label>Date
-          <input id="dayDate" type="date" required />
+          <input id="dayDate" type="date" />
         </label>
-        <label>Day of week
-          <input id="dayName" type="text" disabled />
+        <label>Day (optional text)
+          <input id="dayText" type="text" placeholder="e.g., Saturday, Week 2, etc." />
         </label>
-        <div class="spacer"></div>
-        <button class="btn secondary" id="clearDayBtn" title="Clear all data for this day">Clear This Day</button>
       </div>
+      <small class="muted">Pick a date to load/save that day’s data.</small>
     </section>
 
-    <!-- 2) Meals -->
     <section class="card">
-      <div class="between">
-        <h2>Meals</h2>
-        <button class="btn" id="addMealBtn">+ Add meal</button>
+      <h2>2) Meals</h2>
+      <div class="actions">
+        <button id="addMeal" class="btn">+ Add meal</button>
       </div>
-      <div class="muted small">Example: breakfast · 08:00 · "100 g bread + 2 eggs + tea"</div>
       <ul id="mealsList" class="list"></ul>
+      <template id="mealTpl">
+        <li class="item meal">
+          <div class="entry">
+            <div class="grid three">
+              <label>Kind
+                <select class="meal-kind">
+                  <option>Breakfast</option>
+                  <option>Snack</option>
+                  <option>Lunch</option>
+                  <option>Snack (Afternoon)</option>
+                  <option>Dinner</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <label>Time
+                <input type="time" class="meal-time" />
+              </label>
+              <label>Details
+                <input type="text" class="meal-desc" placeholder="100 g bread + 2 eggs + tea" />
+              </label>
+            </div>
+          </div>
+          <button class="del">Delete</button>
+        </li>
+      </template>
     </section>
 
-    <!-- 3) Medications -->
     <section class="card">
-      <div class="between">
-        <h2>Medications</h2>
-        <button class="btn" id="addMedBtn">+ Add medication</button>
+      <h2>3) Medications</h2>
+      <div class="actions">
+        <button id="addMed" class="btn">+ Add medication</button>
       </div>
-      <div class="muted small">Example: 08:00 · "18 Novorapid — 20 Regular — Sita/Met 12.5–1000"</div>
       <ul id="medsList" class="list"></ul>
+      <template id="medTpl">
+        <li class="item med">
+          <div class="entry">
+            <div class="grid two">
+              <label>Time
+                <input type="time" class="med-time" />
+              </label>
+              <label>Drugs &amp; dose
+                <input type="text" class="med-desc" placeholder="18 Novorapid – 20 Regular – Sita-Met 12.5/1000" />
+              </label>
+            </div>
+          </div>
+          <button class="del">Delete</button>
+        </li>
+      </template>
     </section>
 
-    <!-- 4) Blood sugar -->
     <section class="card">
-      <div class="between">
-        <h2>Blood sugar</h2>
-        <button class="btn" id="addSugarBtn">+ Add reading</button>
+      <h2>4) Blood Sugar</h2>
+      <div class="actions">
+        <button id="addSugar" class="btn">+ Add blood sugar</button>
       </div>
-      <div class="muted small">Preset times: fasting (wake), +2h breakfast, 12:00, 18:00, before sleep</div>
-      <div class="quick-times" id="quickTimes"></div>
-      <ul id="sugarsList" class="list"></ul>
+      <ul id="sugarList" class="list"></ul>
+      <template id="sugarTpl">
+        <li class="item sugar">
+          <div class="entry">
+            <div class="grid two">
+              <label>Time
+                <input type="time" class="sugar-time" />
+              </label>
+              <label>Value (mg/dL)
+                <input type="number" min="10" max="1000" inputmode="decimal" class="sugar-value" />
+              </label>
+            </div>
+          </div>
+          <button class="del">Delete</button>
+        </li>
+      </template>
+      <small class="muted">Recommended times: fasting (after wake), 2h after breakfast, 12:00, 18:00, before sleep.</small>
     </section>
 
-    <!-- 5) Sleep/Wake -->
     <section class="card">
-      <h2>Sleep</h2>
-      <div class="row">
-        <label>Wake-up time
+      <h2>5) Sleep</h2>
+      <div class="grid two">
+        <label>Wake time
           <input id="wakeTime" type="time" />
         </label>
-        <label>Bedtime
+        <label>Bed time
           <input id="sleepTime" type="time" />
         </label>
-        <div class="spacer"></div>
-        <button class="btn secondary" id="saveMetaBtn">Save</button>
       </div>
     </section>
 
-    <!-- 6) Chart -->
     <section class="card">
-      <div class="between">
-        <h2>Blood sugar chart (mg/dL)</h2>
-        <div class="row" style="gap:8px">
-          <label class="small">Y max
-            <input id="yMax" type="number" min="100" max="600" value="300" style="width:90px" />
-          </label>
-          <button class="btn secondary small" id="refreshChartBtn">Refresh</button>
-        </div>
+      <h2>6) Daily Chart</h2>
+      <canvas id="chart" width="1100" height="500" class="chart"></canvas>
+      <div class="actions">
+        <button id="redraw" class="btn secondary">Redraw Chart</button>
+        <button id="exportA4" class="btn">Export A4 (Landscape)</button>
       </div>
-      <canvas id="chart" width="1000" height="420" class="chart"></canvas>
-      <div class="muted small">X-axis = time (00:00–24:00). Y-axis = mg/dL. Blue line connects today's readings.</div>
     </section>
 
-    <!-- 7) Export -->
     <section class="card">
-      <div class="between">
-        <h2>Export A4 (landscape)</h2>
-        <button class="btn" id="exportBtn">Export / Print</button>
-      </div>
-      <div class="muted small">Exports a full-page line chart as the background. Meals & meds appear as boxes placed at their times.</div>
-    </section>
-
-    <!-- 8) Rules -->
-    <section class="card">
-      <h2>Daily Rules</h2>
-      <ul class="rules">
-        <li>Before <b>09:00</b>: eat breakfast and take diabetes meds.</li>
-        <li>Before <b>14:00</b>: eat lunch and take diabetes meds.</li>
-        <li>Before <b>21:00</b>: eat dinner and take diabetes meds.</li>
+      <h2>8) Daily Rules</h2>
+      <ul>
+        <li>Before <b>09:00</b> — eat breakfast and take diabetes medications.</li>
+        <li>Before <b>14:00</b> — eat lunch and take diabetes medications.</li>
+        <li>Before <b>21:00</b> — eat dinner and take diabetes medications.</li>
       </ul>
     </section>
   </main>
 
-  <!-- Templates for add-rows -->
-  <template id="mealRow">
-    <li class="item edit">
-      <div class="grid3">
-        <label>Time
-          <input type="time" class="m-time" required>
-        </label>
-        <label>Kind
-          <select class="m-kind">
-            <option>Breakfast</option>
-            <option>Lunch</option>
-            <option>Dinner</option>
-            <option>Snack</option>
-            <option>Other</option>
-          </select>
-        </label>
-        <label>Description
-          <input type="text" class="m-desc" placeholder="100 g bread + 2 eggs + tea">
-        </label>
-      </div>
-      <div class="actions">
-        <button class="btn small save">Save</button>
-        <button class="btn secondary small cancel">Cancel</button>
-      </div>
-    </li>
-  </template>
-
-  <template id="medRow">
-    <li class="item edit">
-      <div class="grid3">
-        <label>Time
-          <input type="time" class="d-time" required>
-        </label>
-        <label>Medication(s)
-          <input type="text" class="d-desc" placeholder="e.g., 18 Novorapid — 20 Regular — Sita/Met 12.5–1000">
-        </label>
-        <div></div>
-      </div>
-      <div class="actions">
-        <button class="btn small save">Save</button>
-        <button class="btn secondary small cancel">Cancel</button>
-      </div>
-    </li>
-  </template>
-
-  <template id="sugarRow">
-    <li class="item edit">
-      <div class="grid3">
-        <label>Time
-          <input type="time" class="s-time" required>
-        </label>
-        <label>Blood sugar (mg/dL)
-          <input type="number" class="s-val" min="10" max="1000" required placeholder="e.g., 170">
-        </label>
-        <label>Note
-          <input type="text" class="s-note" placeholder="fasting, +2h breakfast, noon ...">
-        </label>
-      </div>
-      <div class="actions">
-        <button class="btn small save">Save</button>
-        <button class="btn secondary small cancel">Cancel</button>
-      </div>
-    </li>
-  </template>
-
-  <!-- Print-only A4 area -->
-  <section id="printArea">
-    <div id="printCanvasWrap">
-      <canvas id="printChart" width="3508" height="2480"></canvas> <!-- A4 landscape @300dpi -->
-      <div id="overlay"></div>
-    </div>
-  </section>
-
   <footer>
-    <small>Install this as an app: open menu ⋮ → <b>Install app</b> (Android Chrome). Works offline after first load.</small>
+    <small>Works offline after first load. You can install it: open menu ⋮ → <b>Install app</b> (Android Chrome).</small>
   </footer>
 
   <script src="app.js" defer></script>
