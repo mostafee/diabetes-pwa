@@ -25,7 +25,7 @@
   </header>
 
   <main>
-    <!-- 8) Daily Rules (moved to top) -->
+    <!-- Rules at top -->
     <section class="card">
       <h2 id="t_rules_title">Daily Rules</h2>
       <ul id="rulesList">
@@ -35,16 +35,16 @@
       </ul>
     </section>
 
-    <!-- 1) Select Day (no units) -->
+    <!-- Select Day -->
     <section class="card">
       <h2 id="t_select_day">Select Day</h2>
       <div class="grid three">
         <label id="t_greg_label">Date (Gregorian)
           <div class="row">
-            <button id="prevDay" class="btn small secondary">&larr;</button>
-            <div class="row">  <input id="dayDate" type="date" />  <button id="openCal" class="btn small secondary" type="button" title="Open calendar">📅</button></div>
-<div id="gregFallback" class="row hidden">  <select id="gYear"></select>  <select id="gMonth"></select>  <select id="gDay"></select></div>
-            <button id="nextDay" class="btn small secondary">&rarr;</button>
+            <button id="prevDay" class="btn small secondary" type="button">&larr;</button>
+            <input id="dateView" class="readonly" type="text" readonly aria-readonly="true" />
+            <button id="openCal" class="btn small secondary" type="button" title="Open calendar">📅</button>
+            <button id="nextDay" class="btn small secondary" type="button">&rarr;</button>
           </div>
         </label>
         <label id="t_jalali_label">Date (Persian)
@@ -63,7 +63,7 @@
       <small class="muted" id="t_pick_hint">Pick a date to load/save that day’s data.</small>
     </section>
 
-    <!-- 2) Meals -->
+    <!-- Meals -->
     <section class="card">
       <h2 id="t_meals">Meals</h2>
       <div class="actions">
@@ -97,7 +97,7 @@
       </template>
     </section>
 
-    <!-- 3) Medications -->
+    <!-- Meds -->
     <section class="card">
       <h2 id="t_meds">Medications</h2>
       <div class="actions">
@@ -121,7 +121,7 @@
       </template>
     </section>
 
-    <!-- 4) Blood Sugar -->
+    <!-- Blood Sugar -->
     <section class="card">
       <h2 id="t_sugars">Blood Sugar</h2>
       <div class="actions">
@@ -151,7 +151,7 @@
       <small class="muted" id="t_rec_hint">Recommended: Fasting (after wake), 2h after breakfast, 12:00, 18:00, Before sleep.</small>
     </section>
 
-    <!-- 5) Sleep -->
+    <!-- Sleep -->
     <section class="card">
       <h2 id="t_sleep">Sleep</h2>
       <div class="grid two">
@@ -164,7 +164,7 @@
       </div>
     </section>
 
-    <!-- 6) Chart / 7) Export -->
+    <!-- Chart + Export -->
     <section class="card">
       <h2 id="t_chart">Daily Chart</h2>
       <canvas id="chart" width="1100" height="540" class="chart"></canvas>
@@ -180,27 +180,26 @@
     <small id="t_footer">Works offline after first load. You can install it: open menu ⋮ → <b>Install app</b> (Android Chrome).</small>
   </footer>
 
-  <script src="app.js" defer></script>
-
-<!-- Custom calendar modal -->
-<div id="calModal" class="modal hidden" aria-hidden="true" role="dialog">
-  <div class="modal-backdrop" data-close></div>
-  <div class="modal-card" role="document" aria-label="Calendar">
-    <div class="modal-header">
-      <button id="calPrev" class="btn small secondary" type="button">◀</button>
-      <div id="calTitle" class="modal-title">Month YYYY</div>
-      <button id="calNext" class="btn small secondary" type="button">▶</button>
-    </div>
-    <div class="cal-grid">
-      <div class="cal-dow">Sun</div><div class="cal-dow">Mon</div><div class="cal-dow">Tue</div><div class="cal-dow">Wed</div><div class="cal-dow">Thu</div><div class="cal-dow">Fri</div><div class="cal-dow">Sat</div>
-      <div id="calDays" class="cal-days"></div>
-    </div>
-    <div class="modal-actions">
-      <button id="calToday" class="btn secondary" type="button">Today</button>
-      <button id="calClose" class="btn" type="button">Close</button>
+  <!-- Custom calendar modal -->
+  <div id="calModal" class="modal hidden" aria-hidden="true" role="dialog">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-card" role="document" aria-label="Calendar">
+      <div class="modal-header">
+        <button id="calPrev" class="btn small secondary" type="button">◀</button>
+        <div id="calTitle" class="modal-title">Month YYYY</div>
+        <button id="calNext" class="btn small secondary" type="button">▶</button>
+      </div>
+      <div class="cal-grid">
+        <div class="cal-dow">Sun</div><div class="cal-dow">Mon</div><div class="cal-dow">Tue</div><div class="cal-dow">Wed</div><div class="cal-dow">Thu</div><div class="cal-dow">Fri</div><div class="cal-dow">Sat</div>
+        <div id="calDays" class="cal-days"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="calToday" class="btn secondary" type="button">Today</button>
+        <button id="calClose" class="btn" type="button">Close</button>
+      </div>
     </div>
   </div>
-</div>
 
+  <script src="app.js" defer></script>
 </body>
 </html>
