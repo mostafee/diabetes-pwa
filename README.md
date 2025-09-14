@@ -1,2 +1,1 @@
-# Diabetes Daily Log — PWA (v2)
-Daily structure with date/day, Meals, Medications, Blood sugar, Wake/Bed times, time-series chart, and A4 landscape export (chart background + overlays for meals/meds). Works offline (IndexedDB + Service Worker).
+Diabetes Daily Log — PWA v2.1 with sugar slots, units toggle, target band, A4 export improvements, copy/clear day, and auto-sorting.

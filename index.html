@@ -23,13 +23,23 @@
   <main>
     <section class="card">
       <h2>1) Select Day</h2>
-      <div class="grid">
+      <div class="grid three">
         <label>Date
           <input id="dayDate" type="date" />
         </label>
         <label>Day (optional text)
-          <input id="dayText" type="text" placeholder="e.g., Saturday, Week 2, etc." />
+          <input id="dayText" type="text" placeholder="Saturday / Week 2" />
         </label>
+        <label>Units
+          <select id="units">
+            <option value="mgdl" selected>mg/dL</option>
+            <option value="mmol">mmol/L</option>
+          </select>
+        </label>
+      </div>
+      <div class="actions">
+        <button id="copyPrev" class="btn secondary">Copy previous day</button>
+        <button id="clearDay" class="btn danger">Clear day</button>
       </div>
       <small class="muted">Pick a date to load/save that day’s data.</small>
     </section>
@@ -93,25 +103,30 @@
     <section class="card">
       <h2>4) Blood Sugar</h2>
       <div class="actions">
-        <button id="addSugar" class="btn">+ Add blood sugar</button>
+        <button id="addSugar" class="btn">+ Add custom reading</button>
+        <button id="addTemplate" class="btn secondary">Use recommended times</button>
       </div>
       <ul id="sugarList" class="list"></ul>
       <template id="sugarTpl">
         <li class="item sugar">
           <div class="entry">
-            <div class="grid two">
+            <div class="grid three">
+              <label>Label
+                <input type="text" class="sugar-label" placeholder="Fasting / After BF 2h / ..." />
+              </label>
               <label>Time
                 <input type="time" class="sugar-time" />
               </label>
-              <label>Value (mg/dL)
-                <input type="number" min="10" max="1000" inputmode="decimal" class="sugar-value" />
+              <label>Value
+                <input type="number" min="10" max="1000" inputmode="decimal" class="sugar-value" placeholder="mg/dL or mmol/L" />
               </label>
             </div>
+            <small class="muted warn"></small>
           </div>
           <button class="del">Delete</button>
         </li>
       </template>
-      <small class="muted">Recommended times: fasting (after wake), 2h after breakfast, 12:00, 18:00, before sleep.</small>
+      <small class="muted">Recommended: Fasting (after wake), 2h after breakfast, 12:00, 18:00, Before sleep.</small>
     </section>
 
     <section class="card">
@@ -128,11 +143,12 @@
 
     <section class="card">
       <h2>6) Daily Chart</h2>
-      <canvas id="chart" width="1100" height="500" class="chart"></canvas>
+      <canvas id="chart" width="1100" height="520" class="chart"></canvas>
       <div class="actions">
         <button id="redraw" class="btn secondary">Redraw Chart</button>
         <button id="exportA4" class="btn">Export A4 (Landscape)</button>
       </div>
+      <small class="muted">Shaded band = 70–180 mg/dL target range.</small>
     </section>
 
     <section class="card">

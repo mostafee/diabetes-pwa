@@ -23,6 +23,7 @@ input::placeholder,textarea::placeholder{color:#64748b}
 .item:last-child{border-bottom:none}
 .entry{flex:1;min-width:0}
 .muted{color:var(--muted)}
+.warn{color:#fbbf24}
 footer{max-width:1000px;margin:20px auto;padding:0 16px 40px;color:#93a3b8}
 .del{background:#1f2937;color:#e5e7eb;border:1px solid #374151;border-radius:10px;padding:6px 10px;cursor:pointer}
 .chart{width:100%;height:auto;border-radius:12px;border:1px solid #1f2937;background:#0b1220}
