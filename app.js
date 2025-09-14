@@ -1,5 +1,52 @@
 // Diabetes Daily Log PWA — fixed v2.2.1
 (function(){
+  // ===== Date input support & fallback (Gregorian triple-selects) =====
+  function supportsDateInput(){
+    const i = document.createElement('input');
+    i.setAttribute('type','date');
+    return (i.type === 'date');
+  }
+  const gYear = document.getElementById('gYear');
+  const gMonth = document.getElementById('gMonth');
+  const gDay = document.getElementById('gDay');
+  const gregFallback = document.getElementById('gregFallback');
+
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function daysInMonth(y,m){ return new Date(y, m, 0).getDate(); } // m: 1..12
+
+  function buildGregFallback(iso){
+    if (!gYear || !gMonth || !gDay) return;
+    // years
+    gYear.innerHTML='';
+    for (let y=2015;y<=2035;y++){
+      const o=document.createElement('option'); o.value=String(y); o.textContent=String(y); gYear.appendChild(o);
+    }
+    // months
+    gMonth.innerHTML='';
+    for (let m=1;m<=12;m++){
+      const o=document.createElement('option'); o.value=pad(m); o.textContent=pad(m); gMonth.appendChild(o);
+    }
+    const [y,m,d] = iso.split('-').map(Number);
+    gYear.value=String(y);
+    gMonth.value=pad(m);
+    const dim=daysInMonth(y,m);
+    gDay.innerHTML='';
+    for (let dd=1; dd<=dim; dd++){
+      const o=document.createElement('option'); o.value=pad(dd); o.textContent=pad(dd); gDay.appendChild(o);
+    }
+    gDay.value=pad(d);
+  }
+
+  function gregSelectToISO(){
+    const y=gYear.value, m=gMonth.value, d=gDay.value;
+    return `${y}-${m}-${d}`;
+  }
+
+  function showGregFallback(show){
+    if (!gregFallback) return;
+    gregFallback.classList.toggle('hidden', !show);
+  }
+
   // ===== i18n =====
   const I18N = {
     en: {
@@ -220,6 +267,8 @@
   // ===== State & init =====
   let current = ensureDay(todayISO());
   if (dayDate) dayDate.valueAsDate = new Date();
+if (!dayDate.value) { dayDate.value = todayISO(); }
+if (!supportsDateInput()) { if (dayDate) dayDate.classList.add('hidden'); buildGregFallback(dayDate.value||todayISO()); showGregFallback(true);}
 
   (async function init(){
     const d = await loadDay(current.date);
@@ -253,7 +302,8 @@
     if (dayDate) dayDate.value = newDate;
     await switchDate(newDate);
   });
-  if (dayDate) dayDate.addEventListener('change', async ()=>{
+  if (dayDate) dayDate.addEventListener('input', async ()=>{ await switchDate(dayDate.value || todayISO()); });
+dayDate.addEventListener('change', async ()=>{
     await switchDate(dayDate.value || todayISO());
   });
 
@@ -586,6 +636,8 @@
 
   // Initial render + bind redraw/export
   function renderAll(){
+  if (dayDate && dayDate.value !== current.date) dayDate.value = current.date;
+  if (!supportsDateInput()) { buildGregFallback(current.date); showGregFallback(true); }
     dayText.value = current.dayText || '';
     wakeTime.value = current.wakeTime || '';
     sleepTime.value = current.sleepTime || '';
@@ -598,3 +650,14 @@
     alert((langSel.value==='fa' ? 'خروجی A4 در نسخه قبلی فعال است.' : 'A4 export is included (same as previous build).'));
   });
 })();
+  if (gYear && gMonth && gDay){
+    const onGregChange = async ()=>{
+      const iso = gregSelectToISO();
+      if (dayDate) dayDate.value = iso;
+      await switchDate(iso);
+      buildGregFallback(iso);
+    };
+    gYear.addEventListener('change', onGregChange);
+    gMonth.addEventListener('change', onGregChange);
+    gDay.addEventListener('change', onGregChange);
+  }

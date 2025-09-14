@@ -43,3 +43,5 @@ footer{max-width:1000px;margin:20px auto;padding:0 16px 40px;color:#93a3b8}
   .card{box-shadow:none;border:none}
   .print-only{display:block}
 }
+
+.hidden{display:none}
