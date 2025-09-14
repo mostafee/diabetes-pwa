@@ -10,8 +10,9 @@ h2{margin:0 0 10px;font-size:1.1rem}
 main{max-width:1000px;margin:20px auto;padding:0 16px}
 .card{background:var(--panel);border:1px solid #1f2937;border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
 label{display:block;font-weight:600;margin:10px 0 6px}
-.row{display:flex;gap:8px;align-items:center}
-input,select,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #374151;background:#0b1220;color:var(--text)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.readonly{background:#0b1220;color:var(--text);border:1px solid #374151;border-radius:10px;padding:10px 12px;min-width:200px}
+input,select,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #374151;background:#0b1220;color:#e5e7eb}
 textarea{resize:vertical}
 input::placeholder,textarea::placeholder{color:#64748b}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
@@ -34,17 +35,10 @@ footer{max-width:1000px;margin:20px auto;padding:0 16px 40px;color:#93a3b8}
 .del{background:#1f2937;color:#e5e7eb;border:1px solid #374151;border-radius:10px;padding:6px 10px;cursor:pointer}
 .chart{width:100%;height:auto;border-radius:12px;border:1px solid #1f2937;background:#0b1220}
 .print-only{display:none}
+.hidden{display:none}
 [dir="rtl"]{direction:rtl}
 [dir="rtl"] .row{flex-direction:row-reverse}
 [dir="rtl"] .actions{flex-direction:row-reverse}
-@media print{
-  body{background:#fff;color:#000}
-  .app-header, footer, .actions, .badge{display:none !important}
-  .card{box-shadow:none;border:none}
-  .print-only{display:block}
-}
-
-.hidden{display:none}
 
 /* Modal calendar */
 .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:50}
@@ -58,5 +52,11 @@ footer{max-width:1000px;margin:20px auto;padding:0 16px 40px;color:#93a3b8}
 .cal-days{grid-column:1 / -1;display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
 .cal-day{padding:10px 0;text-align:center;border-radius:10px;border:1px solid #334155;background:#0b1220;cursor:pointer;user-select:none}
 .cal-day.out{opacity:.35}
-.cal-day.sel{outline:3px solid var(--brand)}
-.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
+.cal-day.sel{outline:3px solid #0ea5e9}
+
+@media print{
+  body{background:#fff;color:#000}
+  .app-header, footer, .actions, .badge, .modal{display:none !important}
+  .card{box-shadow:none;border:none}
+  .print-only{display:block}
+}
