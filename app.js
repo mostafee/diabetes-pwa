@@ -1,5 +1,108 @@
 // Diabetes Daily Log PWA — fixed v2.2.1
 (function(){
+
+  // ===== Date helpers & custom calendar =====
+  function parseISO(iso){
+    const [y,m,d] = iso.split('-').map(Number);
+    return new Date(y, m-1, d);
+  }
+  function fmtISO(d){
+    const pad = n=> String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+  function setDateISO(iso, from='any'){
+    // Central setter used by input, buttons, and custom calendar
+    current.date = iso;
+    if (dayDate && dayDate.value !== iso) dayDate.value = iso;
+    updateJalali();
+    switchDate(iso); // loads day + renders
+  }
+
+  const calModal = document.getElementById('calModal');
+  const calPrev  = document.getElementById('calPrev');
+  const calNext  = document.getElementById('calNext');
+  const calTitle = document.getElementById('calTitle');
+  const calDays  = document.getElementById('calDays');
+  const calToday = document.getElementById('calToday');
+  const calClose = document.getElementById('calClose');
+  const openCal  = document.getElementById('openCal');
+
+  let calView = (dayDate && dayDate.value) ? parseISO(dayDate.value) : new Date();
+
+  function buildCalendar(viewDate){
+    // viewDate: Date in the month we show
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth(); // 0..11
+    const first = new Date(year, month, 1);
+    const last  = new Date(year, month+1, 0);
+    const startIdx = first.getDay(); // 0=Sun..6=Sat
+    const daysInMonth = last.getDate();
+    const prevLast = new Date(year, month, 0).getDate();
+
+    // Title
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    calTitle.textContent = `${monthNames[month]} ${year}`;
+
+    // Days grid
+    calDays.innerHTML = '';
+    // Leading days from previous month
+    for (let i=0;i<startIdx;i++){
+      const dd = prevLast - startIdx + 1 + i;
+      const btn = document.createElement('button');
+      btn.type='button'; btn.className='cal-day out';
+      btn.textContent = String(dd);
+      btn.addEventListener('click', ()=> {
+        const d = new Date(year, month-1, dd);
+        setDateISO(fmtISO(d), 'calendar');
+        calView = d; closeCalendar();
+      });
+      calDays.appendChild(btn);
+    }
+    // Current month days
+    const todayISO = fmtISO(new Date());
+    for (let d=1; d<=daysInMonth; d++){
+      const btn = document.createElement('button');
+      btn.type='button'; btn.className='cal-day';
+      const date = new Date(year, month, d);
+      const iso = fmtISO(date);
+      btn.textContent = String(d);
+      if (dayDate && dayDate.value === iso) btn.classList.add('sel');
+      btn.addEventListener('click', ()=>{
+        setDateISO(iso, 'calendar');
+        calView = date; closeCalendar();
+      });
+      calDays.appendChild(btn);
+    }
+    // Trailing days next month to fill 6 rows (optional)
+    const cells = calDays.children.length;
+    const fill = (cells <= 35) ? (42 - cells) : (cells<=42 ? 42 - cells : 0);
+    for (let d=1; d<=fill; d++){
+      const btn = document.createElement('button');
+      btn.type='button'; btn.className='cal-day out';
+      btn.textContent = String(d);
+      btn.addEventListener('click', ()=> {
+        const date = new Date(year, month+1, d);
+        setDateISO(fmtISO(date), 'calendar');
+        calView = date; closeCalendar();
+      });
+      calDays.appendChild(btn);
+    }
+  }
+
+  function openCalendar(){
+    calModal?.classList.remove('hidden');
+    calView = (dayDate && dayDate.value) ? parseISO(dayDate.value) : new Date();
+    buildCalendar(calView);
+  }
+  function closeCalendar(){ calModal?.classList.add('hidden'); }
+
+  openCal?.addEventListener('click', openCalendar);
+  calPrev?.addEventListener('click', ()=>{ calView.setMonth(calView.getMonth()-1); buildCalendar(calView); });
+  calNext?.addEventListener('click', ()=>{ calView.setMonth(calView.getMonth()+1); buildCalendar(calView); });
+  calToday?.addEventListener('click', ()=>{ const d=new Date(); setDateISO(fmtISO(d),'calendar'); calView=d; buildCalendar(calView); });
+  calClose?.addEventListener('click', closeCalendar);
+  calModal?.addEventListener('click', (e)=>{ if (e.target.classList.contains('modal-backdrop')) closeCalendar(); });
+
   // ===== Date input support & fallback (Gregorian triple-selects) =====
   function supportsDateInput(){
     const i = document.createElement('input');
@@ -294,18 +397,16 @@ if (!supportsDateInput()) { if (dayDate) dayDate.classList.add('hidden'); buildG
     const base = dayDate?.value || todayISO();
     const newDate = offsetDate(base, -1);
     if (dayDate) dayDate.value = newDate;
-    await switchDate(newDate);
+    setDateISO(newDate, 'nav');
   });
   if (nextDayBtn) nextDayBtn.addEventListener('click', async ()=>{
     const base = dayDate?.value || todayISO();
     const newDate = offsetDate(base, +1);
     if (dayDate) dayDate.value = newDate;
-    await switchDate(newDate);
+    setDateISO(newDate, 'nav');
   });
-  if (dayDate) dayDate.addEventListener('input', async ()=>{ await switchDate(dayDate.value || todayISO()); });
-dayDate.addEventListener('change', async ()=>{
-    await switchDate(dayDate.value || todayISO());
-  });
+  if (dayDate) dayDate.addEventListener('input', async ()=>{ setDateISO(dayDate.value || todayISO(), 'input'); });
+dayDate.addEventListener('change', async ()=>{ setDateISO(dayDate.value || todayISO(), 'change'); });
 
   function updateJalali(){
     if (jalaliOut) jalaliOut.textContent = gregToJalaliString(current.date);

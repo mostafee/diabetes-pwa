@@ -1,5 +1,5 @@
 // Cache assets for offline
-const CACHE = 'diabetes-pwa-v2-2';
+const CACHE = 'diabetes-pwa-v2-2-3';
 const ASSETS = [
   './',
   './index.html',

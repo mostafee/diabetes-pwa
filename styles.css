@@ -45,3 +45,18 @@ footer{max-width:1000px;margin:20px auto;padding:0 16px 40px;color:#93a3b8}
 }
 
 .hidden{display:none}
+
+/* Modal calendar */
+.modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:50}
+.modal.hidden{display:none}
+.modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+.modal-card{position:relative;background:var(--panel);border:1px solid #1f2937;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.4);padding:16px;width:min(92vw,520px)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.modal-title{font-weight:800}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:8px}
+.cal-dow{color:var(--muted);font-size:.85rem;text-align:center}
+.cal-days{grid-column:1 / -1;display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal-day{padding:10px 0;text-align:center;border-radius:10px;border:1px solid #334155;background:#0b1220;cursor:pointer;user-select:none}
+.cal-day.out{opacity:.35}
+.cal-day.sel{outline:3px solid var(--brand)}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
